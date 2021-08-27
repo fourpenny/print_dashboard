@@ -1,0 +1,4 @@
+include README.md
+recursive-include print_dash/templates *
+recursive-include print_dash/translations *
+recursive-include print_dash/static *
