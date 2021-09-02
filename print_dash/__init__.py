@@ -34,7 +34,7 @@ class Print_dashPlugin(
 
         def get_assets(self):
             return dict(
-                js=["js/print_dash.js"],
+                js=["js/print_dash.js", "js/d3.min.js"],
                 css=["css/print_dash.css"]
             )
 
