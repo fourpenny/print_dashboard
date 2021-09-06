@@ -51,7 +51,7 @@ class Print_dashPlugin(
             #list of events to use: PrintStarted, PrintFailed, PrintDone, PrintCancelled,
             #FileAdded, FileSelected
             if event == "PrintStarted":
-                self._logger.info("Success!")
+                self._logger.info("Success")
             return
 
 #------------------------------------------------------------------------------#
