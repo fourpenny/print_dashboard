@@ -6,23 +6,71 @@ import sqlite3
 import flask
 
 class printStatsDB:
-    def __init__(self, plugin):
-        self.name = plugins._settings.settings.getBaseFolder("logs") + "stats.db"
+    def __init__(self, folder):
+        self.name = folder + "stats.db"
+        #note, in the future should move connection object to individual functions
+        #rather than DB object
+        self.connection= self.connect()
+        self.cursor = self.connection.cursor()
+        self.tables = ['filaments','models','prints']
 
-    #TODO: Implement function below within OctoPrint instead of the OS?
-    #Using OS library causes plugin to not work for some reason...
-    #Use DROP TABLE to clear table data instead :)
     def delete_database(self):
-        return "Database deleted :)"
+        cursor.executemany('''DROP TABLE (?)''', self.tables)
 
-    #def connect(self):
-    #    conn = None
-    #    try:
-    #        conn = sqlite3.connect(self.name)
-    #        return conn
-    #    except Error as e:
-    #        print(e)
-    #    return conn
+    def connect(self):
+
+        conn = None
+        try:
+            conn = sqlite3.connect(self.name, check_same_thread=False)
+            return conn
+        except Error as e:
+            print(e)
+        return conn
+
+    def create_tables(self):
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS filaments (
+                        filament_id INTEGER PRIMARY KEY,
+                        material TEXT,
+                        brand TEXT,
+                        purchase_date TEXT,
+                        color TEXT
+                        )'''
+        )
+
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS models (
+                        model_id INTEGER PRIMARY KEY,
+                        file_name TEXT,
+                        volume REAL,
+                        base_area REAL,
+                        skirt INTEGER,
+                        raft INTEGER
+                        )'''
+        )
+        cursor.execute('''CREATE TABLE IF NOT EXISTS prints (
+                        print_id INTEGER PRIMARY KEY,
+                        success INTEGER,
+                        filament_id INTEGER,
+                        model_id INTEGER,
+                        nozzle_temp REAL,
+                        bed_temp REAL,
+                        print_date TEXT,
+                        nozzle_size REAL,
+                        FOREIGN KEY (filament_id)
+                            REFERENCES filaments (filament_id),
+                        FOREIGN KEY (model_id)
+                            REFERENCES models (model_id)
+                        )'''
+        )
+
+    def update_prints(self, payload):
+        self.print_fp = payload['path']
+        #check if a file with the same path is already in the database
+        self.cursor.execute('''SELECT * FROM models WHERE file_name LIKE (?)''', (self.print_fp,))
+        #if not, add it to the database
+        if self.cursor.fetchone() == None:
+            self.cursor.execute('''INSERT INTO models (file_name)
+                                    VALUES (?)''', (self.print_fp,))
+            self.connection.commit()
 
 class Print_dashPlugin(
                         octoprint.plugin.TemplatePlugin,
@@ -39,19 +87,21 @@ class Print_dashPlugin(
             )
 
         def on_after_startup(self):
-            self.database = printStatsDB(self)
+            self.database = printStatsDB(self.get_plugin_data_folder())
+            self.database.create_tables()
 
 #------------------------------------------------------------------------------#
 # Event Handling                                                               #
 #------------------------------------------------------------------------------#
 
         def on_event(self, event, payload):
-            self._logger.info(event)
-            self._logger.info(payload)
+            #self._logger.info(event)
+            #self._logger.info(payload)
             #list of events to use: PrintStarted, PrintFailed, PrintDone, PrintCancelled,
             #FileAdded, FileSelected
             if event == "PrintStarted":
                 self._logger.info("Success")
+                self.database.update_prints(payload)
             return
 
 #------------------------------------------------------------------------------#
